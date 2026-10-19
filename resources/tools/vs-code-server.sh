@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 set -x  # Enable debug output
 
 INSTALL_ONLY=0
@@ -15,7 +16,7 @@ done
 if [ ! -f "/usr/local/bin/code-server"  ]; then
     echo "Installing VS Code Server. Please wait..."
     cd ${RESOURCES_PATH}
-    VS_CODE_VERSION=3.10.2
+    VS_CODE_VERSION=4.110.0
     # Use yarn install since it is smaller
     yarn --production --frozen-lockfile global add code-server@"$VS_CODE_VERSION"
     yarn cache clean

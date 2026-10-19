@@ -77,6 +77,13 @@ class TestTooling:
         print(result.status_code)
         assert result.status_code == 200
 
+    def test_jupyter_api(self):
+        result = requests.get(
+            f"http://{workspace_host}:{workspace_port}/api", timeout=10
+        )
+        assert result.status_code == 200
+        assert "version" in result.json()
+
     def test_tool_vnc(self):
         # Test whether tools are accessible
         result = requests.get(

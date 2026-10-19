@@ -316,12 +316,14 @@ docker run -p 8080:8080 khulnasoft/ml-workspace-spark:0.12.1
 <details>
 <summary>Details (click to expand...)</summary>
 
-> _Currently, the GPU-flavor only supports CUDA 11.2. Support for other CUDA versions might be added in the future._
+> _The GPU flavor uses CUDA Toolkit 12.6.3._
 
-The GPU flavor (`khulnasoft/ml-workspace-gpu`) is based on our default workspace image and extends it with CUDA 10.1 and GPU-ready versions of various machine learning libraries (e.g., tensorflow, pytorch, cntk, jax). This GPU image has the following additional requirements for the system:
+The GPU flavor (`khulnasoft/ml-workspace-gpu`) is based on our default workspace image and extends it with CUDA 12.6.3 and GPU-ready versions of machine learning libraries, including TensorFlow 2.19 and PyTorch 2.6. This GPU image has the following additional requirements for the system:
 
-- Nvidia Drivers for the GPUs. Drivers need to be CUDA 11.2 compatible, version `>=460.32.03` ([📖 Instructions](https://github.com/NVIDIA/nvidia-docker/wiki/Frequently-Asked-Questions#how-do-i-install-the-nvidia-driver)).
-- (Docker >= 19.03) Nvidia Container Toolkit ([📖 Instructions](https://github.com/NVIDIA/nvidia-docker/wiki/Installation-(Native-GPU-Support))).
+- NVIDIA GPU drivers version `>=560.35.05` ([📖 Installation guide](https://docs.nvidia.com/datacenter/tesla/driver-installation-guide/index.html)).
+- NVIDIA Container Toolkit ([📖 Installation guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)).
+
+NVIDIA's [CUDA 12.6.3 installation guide](https://docs.nvidia.com/cuda/archive/12.6.3/cuda-installation-guide-linux/index.html) lists Ubuntu 24.04 point releases only through 24.04.1 in its native Linux support table. This image uses the floating Ubuntu 24.04 LTS tag, so newer point releases have not been GPU-validated here.
 
 ```bash
 docker run -p 8080:8080 --gpus all khulnasoft/ml-workspace-gpu:0.13.2
@@ -782,9 +784,11 @@ CMD ["python", "/resources/docker-entrypoint.py", "--code-only"]
 
 The workspace is pre-installed with many popular interpreters, data science libraries, and ubuntu packages:
 
-- **Interpreter:** Python 3.8 (Miniconda 3), NodeJS 14, Scala, Perl 5
-- **Python libraries:** Tensorflow, Keras, Pytorch, Sklearn, XGBoost, MXNet, Theano, and [many more](https://github.com/khulnasoft/ml-workspace/tree/main/resources/libraries)
+- **Interpreter:** Python 3.11 (Miniconda 3), Node.js 22, Perl 5. Java and Scala can be installed with their tool installers.
+- **Python libraries:** TensorFlow, Keras, PyTorch, scikit-learn, XGBoost, and [many more](https://github.com/khulnasoft/ml-workspace/tree/main/resources/libraries)
 - **Package Manager:** `conda`, `pip`, `apt-get`, `npm`, `yarn`, `sdk`, `poetry`, `gdebi`...  
+
+The Python 3.11 migration replaces `cx-Oracle` with `oracledb`, `pandas-profiling` with `ydata-profiling`, and Theano with its maintained successor PyTensor. Discontinued optional packages that are no longer maintained or compatible with the updated framework stack, including Chainer, MXNet/Gluon, Fairseq, LightFM, and TensorFlow Addons, are no longer included.
 
 The full list of installed tools can be found within the [Dockerfile](https://github.com/khulnasoft/ml-workspace/blob/main/Dockerfile).
 

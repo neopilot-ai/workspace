@@ -26,7 +26,8 @@ rm -rf /tmp/* /var/tmp/* $HOME/.cache/* /var/cache/apt/*
 # Fix permissions on tmp directory
 chmod 1777 /tmp
 # Remove apt lists
-rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/*
+rm -rf /var/lib/apt/lists/*
+find /etc/apt/sources.list.d -maxdepth 1 -type f ! -name ubuntu.sources -delete
 
 # Clean conda
 if [ -x "$(command -v conda)" ]; then

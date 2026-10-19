@@ -15,13 +15,16 @@ done
 if [ ! -f "/usr/share/code/code" ]; then
     echo "Installing VS Code. Please wait..."
     cd $RESOURCES_PATH
-    # Tmp fix to run vs code without no-sandbox: https://github.com/microsoft/vscode/issues/126027
-    wget -q https://az764295.vo.msecnd.net/stable/054a9295330880ed74ceaedda236253b4f39a335/code_1.56.2-1620838498_amd64.deb -O ./vscode.deb
-    # wget -q https://go.microsoft.com/fwlink/?LinkID=760868 -O ./vscode.deb
+    VSCODE_VERSION=1.96.4
+    VSCODE_SHA256=67f8a32eb1e24e3ba3c8e586f0871ae20a5522dc8d76323e187cd9b5f9bce0e9
+    curl --fail --location --retry 3 --retry-delay 2 \
+        "https://update.code.visualstudio.com/${VSCODE_VERSION}/linux-deb-x64/stable" \
+        --output ./vscode.deb
+    echo "${VSCODE_SHA256}  vscode.deb" | sha256sum --check -
     apt-get update
     apt-get install -y ./vscode.deb
     rm ./vscode.deb
-    rm /etc/apt/sources.list.d/vscode.list
+    rm -f /etc/apt/sources.list.d/vscode.list
 else
     echo "VS Code is already installed"
 fi

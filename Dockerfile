@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 AS workspace-base
+FROM ubuntu:24.04 AS workspace-base
 
 USER root
 
@@ -27,7 +27,12 @@ ENV \
 # Create user
 RUN \
     groupadd -f -g $NB_GID users || true && \
-    useradd -m -s /bin/bash -u $NB_UID -g $NB_GID $NB_USER && \
+    if getent passwd "$NB_UID" >/dev/null; then \
+    existing_user=$(getent passwd "$NB_UID" | cut -d: -f1) && \
+    usermod --login "$NB_USER" --home "$HOME" --move-home --gid "$NB_GID" "$existing_user"; \
+    else \
+    useradd -m -s /bin/bash -u $NB_UID -g $NB_GID $NB_USER; \
+    fi && \
     # Add to sudoers
     apt-get update && \
     apt-get install -y sudo && \
@@ -77,12 +82,10 @@ RUN \
     # add-apt-repository ppa:apt-fast/stable
     # add-apt-repository 'deb http://security.ubuntu.com/ubuntu xenial-security main'
     apt-get update --fix-missing && \
-    apt-get install -y sudo apt-utils && \
+    apt-get install -y sudo && \
     apt-get upgrade -y && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-    # This is necessary for apt to access HTTPS sources:
-    apt-transport-https \
     gnupg-agent \
     gpg-agent \
     gnupg2 \
@@ -100,7 +103,6 @@ RUN \
     iproute2 \
     psmisc \
     tmux \
-    dpkg-sig \
     uuid-dev \
     csh \
     xclip \
@@ -195,18 +197,13 @@ RUN \
     unzip \
     bzip2 \
     lzop \
-    # deprecates bsdtar (https://ubuntu.pkgs.org/20.04/ubuntu-universe-i386/libarchive-tools_3.4.0-2ubuntu1_i386.deb.html)
+    # Provides bsdtar.
     libarchive-tools \
-    zlibc \
     # unpack (almost) everything with one command
     unp \
     libbz2-dev \
     liblzma-dev \
     zlib1g-dev && \
-    # Update git to newest version
-    add-apt-repository -y ppa:git-core/ppa  && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends git && \
     # Fix all execution permissions
     chmod -R a+rwx /usr/local/bin/ && \
     # configure dynamic linker run-time bindings
@@ -245,7 +242,7 @@ RUN \
     clean-layer.sh
 
 RUN \
-    OPEN_RESTY_VERSION="1.19.3.2" && \
+    OPEN_RESTY_VERSION="1.27.1.2" && \
     mkdir $RESOURCES_PATH"/openresty" && \
     cd $RESOURCES_PATH"/openresty" && \
     apt-get update && \
@@ -286,14 +283,13 @@ ENV \
     # TODO: CONDA_DIR is deprecated and should be removed in the future
     CONDA_DIR=/opt/conda \
     CONDA_ROOT=/opt/conda \
-    PYTHON_VERSION="3.8.10" \
-    CONDA_PYTHON_DIR=/opt/conda/lib/python3.8 \
-    MINICONDA_VERSION=4.9.2 \
-    MINICONDA_MD5=122c8c9beb51e124ab32a0fa6426c656 \
-    CONDA_VERSION=4.9.2
+    PYTHON_VERSION="3.11" \
+    CONDA_PYTHON_DIR=/opt/conda/lib/python3.11 \
+    MINICONDA_VERSION=24.7.1-0 \
+    MINICONDA_SHA256=a098a5b1581d8fd078c430b82e27106602223e335efef708a124e723814d120c
 
-RUN wget --no-verbose https://repo.anaconda.com/miniconda/Miniconda3-py38_${CONDA_VERSION}-Linux-x86_64.sh -O ~/miniconda.sh && \
-    echo "${MINICONDA_MD5} *miniconda.sh" | md5sum -c - && \
+RUN wget --no-verbose https://repo.anaconda.com/miniconda/Miniconda3-py311_${MINICONDA_VERSION}-Linux-x86_64.sh -O ~/miniconda.sh && \
+    echo "${MINICONDA_SHA256} *miniconda.sh" | sha256sum -c - && \
     /bin/bash ~/miniconda.sh -b -p $CONDA_ROOT && \
     export PATH=$CONDA_ROOT/bin:$PATH && \
     rm ~/miniconda.sh && \
@@ -310,7 +306,7 @@ RUN wget --no-verbose https://repo.anaconda.com/miniconda/Miniconda3-py38_${COND
     $CONDA_ROOT/bin/conda update -y -n base -c defaults conda && \
     $CONDA_ROOT/bin/conda update -y setuptools && \
     $CONDA_ROOT/bin/conda install -y conda-build && \
-    # Update selected packages - install python 3.8.x
+    # Update selected packages - install Python 3.11
     $CONDA_ROOT/bin/conda install -y --update-all python=$PYTHON_VERSION && \
     # Link Conda
     ln -s $CONDA_ROOT/bin/python /usr/local/bin/python && \
@@ -338,7 +334,7 @@ ENV LD_LIBRARY_PATH=$CONDA_ROOT/lib
 RUN git clone https://github.com/pyenv/pyenv.git $RESOURCES_PATH/.pyenv && \
     # Install pyenv plugins based on pyenv installer
     git clone https://github.com/pyenv/pyenv-virtualenv.git $RESOURCES_PATH/.pyenv/plugins/pyenv-virtualenv  && \
-    git clone git://github.com/pyenv/pyenv-doctor.git $RESOURCES_PATH/.pyenv/plugins/pyenv-doctor && \
+    git clone https://github.com/pyenv/pyenv-doctor.git $RESOURCES_PATH/.pyenv/plugins/pyenv-doctor && \
     git clone https://github.com/pyenv/pyenv-update.git $RESOURCES_PATH/.pyenv/plugins/pyenv-update && \
     git clone https://github.com/pyenv/pyenv-which-ext.git $RESOURCES_PATH/.pyenv/plugins/pyenv-which-ext && \
     apt-get update && \
@@ -363,7 +359,7 @@ ENV PATH=$HOME/.local/bin:$PATH
 RUN \
     apt-get update && \
     # https://nodejs.org/en/about/releases/ use even numbered releases, i.e. LTS versions
-    curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash - && \
+    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && \
     apt-get install -y nodejs && \
     # As conda is first in path, the commands 'node' and 'npm' reference to the version of conda.
     # Replace those versions with the newly installed versions of node
@@ -424,10 +420,8 @@ FROM workspace-runtimes AS workspace-tools
 # Install xfce4 & gui tools
 RUN \
     # Use staging channel to get newest xfce4 version (4.16)
-    add-apt-repository -y ppa:xubuntu-dev/staging && \
     apt-get update && \
     apt-get install -y --no-install-recommends xfce4 && \
-    apt-get install -y --no-install-recommends gconf2 && \
     apt-get install -y --no-install-recommends xfce4-terminal && \
     apt-get install -y --no-install-recommends xfce4-clipman && \
     apt-get install -y --no-install-recommends xterm && \
@@ -462,17 +456,15 @@ RUN \
     # Install nautilus and support for sftp mounting
     apt-get install -y --no-install-recommends nautilus gvfs-backends && \
     # Install gigolo - Access remote systems
-    apt-get install -y --no-install-recommends gigolo gvfs-bin && \
+    apt-get install -y --no-install-recommends gigolo && \
     # xfce systemload panel plugin - needs to be activated
     # apt-get install -y --no-install-recommends xfce4-systemload-plugin && \
     # Leightweight ftp client that supports sftp, http, ...
     apt-get install -y --no-install-recommends gftp && \
-    # Install chrome
-    # sudo add-apt-repository ppa:system76/pop
-    add-apt-repository ppa:saiarcot895/chromium-beta && \
-    apt-get update && \
-    apt-get install -y chromium-browser chromium-browser-l10n chromium-codecs-ffmpeg && \
-    ln -s /usr/bin/chromium-browser /usr/bin/google-chrome && \
+    # Install Chrome from Google's Debian repository package; Ubuntu's Chromium package is a snap.
+    wget --no-verbose https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -O $RESOURCES_PATH/google-chrome.deb && \
+    apt-get install -y $RESOURCES_PATH/google-chrome.deb && \
+    rm $RESOURCES_PATH/google-chrome.deb && \
     # Cleanup
     apt-get purge -y pm-utils xscreensaver* && \
     # Large package: gnome-user-guide 50MB app-install-data 50MB
@@ -597,16 +589,13 @@ RUN \
     # Install some basics - required to run container
     conda install -y --update-all \
     'python='$PYTHON_VERSION \
-    'ipython=7.24.*' \
-    'notebook=6.4.*' \
-    'jupyterlab=3.0.*' \
-    # TODO: nbconvert 6.x makes problems with template_path
-    'nbconvert=5.6.*' \
-    # TODO: temp fix: yarl version 1.5 is required for lots of libraries.
-    'yarl==1.5.*' \
-    # TODO install scipy, numpy, sklearn, and numexpr via conda for mkl optimizaed versions: https://docs.anaconda.com/mkl-optimizations/
-    'scipy==1.7.*' \
-    'numpy==1.19.*' \
+    'ipython=8.*' \
+    'notebook=6.5.*' \
+    'jupyterlab=3.6.*' \
+    'nbconvert=6.5.*' \
+    # Keep NumPy on the 1.x ABI while older optional packages are still in use.
+    'scipy==1.13.*' \
+    'numpy==1.26.*' \
     scikit-learn \
     numexpr && \
     # installed via apt-get and pip: protobuf \
@@ -633,8 +622,13 @@ RUN \
     mkl-include && \
     # Install mkldnn
     conda install -y --freeze-installed -c mingfeima mkldnn && \
-    # Install pytorch - cpu only
-    conda install -y -c pytorch "pytorch==1.9.*" cpuonly && \
+    # Install PyTorch CPU wheels; the Conda channel lacks matching Python 3.11 builds.
+    pip install --no-cache-dir \
+    --index-url https://download.pytorch.org/whl/cpu \
+    --extra-index-url https://pypi.org/simple \
+    'torch==2.5.1+cpu' \
+    'torchvision==0.20.1+cpu' \
+    'torchaudio==2.5.1+cpu' && \
     # Install light pip requirements
     pip install --no-cache-dir --upgrade --upgrade-strategy only-if-needed -r ${RESOURCES_PATH}/libraries/requirements-light.txt && \
     # If light light flavor - exit here
@@ -671,10 +665,10 @@ RUN \
     # Faiss - A library for efficient similarity search and clustering of dense vectors.
     conda install -y --freeze-installed faiss-cpu && \
     # Install full pip requirements
-    pip install --no-cache-dir --upgrade --upgrade-strategy only-if-needed --use-deprecated=legacy-resolver -r ${RESOURCES_PATH}/libraries/requirements-full.txt && \
+    pip install --no-cache-dir --upgrade --upgrade-strategy only-if-needed -r ${RESOURCES_PATH}/libraries/requirements-full.txt && \
     # Setup Spacy
     # Spacy - download and large language removal
-    python -m spacy download en && \
+    python -m spacy download en_core_web_sm && \
     # Fix permissions
     fix-permissions.sh $CONDA_ROOT && \
     # Cleanup

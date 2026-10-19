@@ -35,7 +35,7 @@ ENV NVIDIA_VISIBLE_DEVICES=all \
 ### GPU DATA SCIENCE LIBRARIES ###
 RUN apt-get update && \
     apt-get install -y --no-install-recommends libomp-dev libopenblas-base && \
-    pip uninstall -y torch torchvision torchaudio && \
+    pip uninstall -y torch torchvision torchaudio torchtext && \
     pip install --no-cache-dir \
         --index-url https://download.pytorch.org/whl/cu126 \
         torch==2.6.0+cu126 torchvision==0.21.0+cu126 torchaudio==2.6.0+cu126 && \

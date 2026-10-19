@@ -626,9 +626,9 @@ RUN \
     pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cpu \
     --extra-index-url https://pypi.org/simple \
-    'torch==2.5.1+cpu' \
-    'torchvision==0.20.1+cpu' \
-    'torchaudio==2.5.1+cpu' && \
+    'torch==2.3.0+cpu' \
+    'torchvision==0.18.0+cpu' \
+    'torchaudio==2.3.0+cpu' && \
     # Install light pip requirements
     pip install --no-cache-dir --upgrade --upgrade-strategy only-if-needed -r ${RESOURCES_PATH}/libraries/requirements-light.txt && \
     # If light light flavor - exit here
@@ -664,6 +664,8 @@ RUN \
     conda install -y -c conda-forge mamba && \
     # Faiss - A library for efficient similarity search and clustering of dense vectors.
     conda install -y --freeze-installed faiss-cpu && \
+    # Make torch and torchtext versions compatible
+    pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple 'torch==2.3.0+cpu' 'torchtext==0.18.0' && \
     # Install full pip requirements
     pip install --no-cache-dir --upgrade --upgrade-strategy only-if-needed -r ${RESOURCES_PATH}/libraries/requirements-full.txt && \
     # Setup Spacy

@@ -1,3 +1,23 @@
+FROM ubuntu:24.04 AS openresty-builder
+
+ARG OPEN_RESTY_VERSION="1.27.1.2"
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    libpcre3-dev \
+    libssl-dev \
+    wget \
+    zlib1g-dev && \
+    wget --no-verbose https://openresty.org/download/openresty-${OPEN_RESTY_VERSION}.tar.gz -O /tmp/openresty.tar.gz && \
+    tar xfz /tmp/openresty.tar.gz -C /tmp && \
+    cd /tmp/openresty-${OPEN_RESTY_VERSION} && \
+    ./configure --with-http_stub_status_module --with-http_sub_module > /dev/null && \
+    make -j2 > /dev/null && \
+    make install > /dev/null && \
+    rm -rf /tmp/openresty-${OPEN_RESTY_VERSION} /tmp/openresty.tar.gz /var/lib/apt/lists/*
+
 FROM ubuntu:24.04 AS workspace-base
 
 USER root
@@ -19,6 +39,7 @@ ENV \
     XDG_RUNTIME_DIR="/tmp" \
     DISPLAY=":1" \
     TERM="xterm" \
+    PIP_DEFAULT_TIMEOUT="60" \
     DEBIAN_FRONTEND="noninteractive" \
     RESOURCES_PATH="/resources" \
     SSL_RESOURCES_PATH="/resources/ssl" \
@@ -242,31 +263,18 @@ RUN \
     clean-layer.sh
 
 RUN \
-    OPEN_RESTY_VERSION="1.27.1.2" && \
-    mkdir $RESOURCES_PATH"/openresty" && \
-    cd $RESOURCES_PATH"/openresty" && \
     apt-get update && \
     apt-get purge -y nginx nginx-common && \
-    # libpcre required, otherwise you get a 'the HTTP rewrite module requires the PCRE library' error
-    # Install apache2-utils to generate user:password file for nginx.
-    apt-get install -y libssl-dev libpcre3 libpcre3-dev apache2-utils && \
-    wget --no-verbose https://openresty.org/download/openresty-$OPEN_RESTY_VERSION.tar.gz  -O ./openresty.tar.gz && \
-    tar xfz ./openresty.tar.gz && \
-    rm ./openresty.tar.gz && \
-    cd ./openresty-$OPEN_RESTY_VERSION/ && \
-    # Surpress output - if there is a problem remove  > /dev/null
-    ./configure --with-http_stub_status_module --with-http_sub_module > /dev/null && \
-    make -j2 > /dev/null && \
-    make install > /dev/null && \
-    # create log dir and file - otherwise openresty will throw an error
+    # Keep OpenResty's runtime library and Apache password utility in the final image.
+    apt-get install -y --no-install-recommends libpcre3 apache2-utils && \
     mkdir -p /var/log/nginx/ && \
     touch /var/log/nginx/upstream.log && \
-    cd $RESOURCES_PATH && \
-    rm -r $RESOURCES_PATH"/openresty" && \
     # Fix permissions
     chmod -R a+rwx $RESOURCES_PATH && \
     # Cleanup
     clean-layer.sh
+
+COPY --from=openresty-builder /usr/local/openresty /usr/local/openresty
 
 ENV PATH=/usr/local/openresty/nginx/sbin:$PATH
 

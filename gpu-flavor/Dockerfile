@@ -35,12 +35,12 @@ ENV NVIDIA_VISIBLE_DEVICES=all \
 ### GPU DATA SCIENCE LIBRARIES ###
 RUN apt-get update && \
     apt-get install -y --no-install-recommends libomp-dev libopenblas-base && \
+    pip uninstall -y tensorflow tensorflow-cpu intel-tensorflow && \
+    pip install --no-cache-dir "tensorflow[and-cuda]==2.19.*" && \
     pip uninstall -y torch torchvision torchaudio torchtext && \
     pip install --no-cache-dir \
         --index-url https://download.pytorch.org/whl/cu126 \
         torch==2.6.0+cu126 torchvision==0.21.0+cu126 torchaudio==2.6.0+cu126 && \
-    pip uninstall -y tensorflow tensorflow-cpu intel-tensorflow && \
-    pip install --no-cache-dir "tensorflow[and-cuda]==2.19.*" && \
     pip install --no-cache-dir \
         cupy-cuda12x pycuda gpustat py3nvml gputil scikit-cuda && \
     pip uninstall -y onnxruntime && \

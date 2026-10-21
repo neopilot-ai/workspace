@@ -15,15 +15,25 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   BUILD_ARGS: ${{ github.event.inputs.build_args || secrets.BUILD_ARGS }}
   WORKING_DIRECTORY: ${{ github.event.inputs.working_directory || secrets.WORKING_DIRECTORY }}
-  ACTIONS_ALLOW_UNSECURE_COMMANDS: true # TODO: only needed until act supports the new way
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     steps:
       - name: set-host-ip
         run: echo "_HOST_IP=$(hostname -I | cut -d ' ' -f 1)" >> $GITHUB_ENV
@@ -38,15 +48,30 @@ jobs:
       - name: run-lint
         run: ruff check .
       - name: run-build-scripts
+        if: github.event_name != 'pull_request'
         uses: ./.github/actions/build-environment
         with:
           build_args: ${{ env.BUILD_ARGS }}
           working_directory: ${{ env.WORKING_DIRECTORY }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: run-build-scripts-without-token
+        if: github.event_name == 'pull_request'
+        uses: ./.github/actions/build-environment
+        with:
+          build_args: ${{ env.BUILD_ARGS }}
+          working_directory: ${{ env.WORKING_DIRECTORY }}
       - name: generate-sbom
         run: make sbom
       - name: scan-vulnerabilities
         run: make scan
       - name: audit-policy
         run: make audit
+      - name: upload-sbom
+        if: always() && hashFiles('build/sbom.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.run_id }}
+          path: build/sbom.json
+          if-no-files-found: error
+          retention-days: 14
